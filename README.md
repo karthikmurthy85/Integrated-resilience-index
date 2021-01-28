@@ -1,4 +1,4 @@
-# spring_damper_resilience
+# Calcualation of Integrated Resilience Index
 identifying quasi-equilibrium potential states in long-term NDVI time series
 
 This includes the following steps:
