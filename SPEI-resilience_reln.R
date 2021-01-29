@@ -90,30 +90,6 @@ foreach(i = 1:nrow(d1))%dopar%{
               append=TRUE, row.names=FALSE, col.names=FALSE)
 }
 
-spei_dat <- read.csv('/media/karthik/ADATA HD720/global_veg/datasets/water_stress_new_dat.csv', h=F)
-head(spei_dat)
-ids <- spei_dat$V1
-ids1 <- as.numeric(rownames(d1))
-ids2 <- ids1[!ids1 %in% ids]
-
-for(i in 3:length(ids2)){
-  library(reshape2);library(rgeos)
-  cord <- matrix(as.numeric(d1[ids2[i], 3:4]), ncol=2)
-  speidt <- melt(extract(spei1, cord))
-  dry_indx075 <- spei_xtrme_index(speidt$value, 0.75)
-  dry_indx080 <- spei_xtrme_index(speidt$value, 0.8)
-  dry_indx085 <- spei_xtrme_index(speidt$value, 0.85)
-  dry_indx090 <- spei_xtrme_index(speidt$value, 0.9)
-  dry_indx095 <- spei_xtrme_index(speidt$value, 0.95)
-  
-  dry_indx_dat <- matrix(c(i,cord,dry_indx075,dry_indx080,
-                           dry_indx085,dry_indx090,dry_indx095), byrow=T, nrow = 1)
-  path <- '/media/karthik/ADATA HD720/global_veg/datasets/water_stress_new_dat.csv'
-  write.table(dry_indx_dat, path, sep=',', 
-              append=TRUE, row.names=FALSE, col.names=FALSE)
-  print(i)
-}
-
 spei_xtrm <- read.csv( '/media/karthik/ADATA HD720/global_veg/datasets/water_stress_new_dat.csv', h=F)
 nrow(spei_xtrm)
 whb <- brick('global_veg/rasters/whittaker_worldclim_ecoregion.tif')
