@@ -87,3 +87,114 @@ foreach(i = 1:nrow(d1))%dopar%{
               append=TRUE, row.names=FALSE, col.names=FALSE)
 }
 
+
+library(ggplot2)
+library(raster)
+spei_xtrm <- read.csv( 'D:/global_veg/datasets/water_stress_seasonal_new_dat.csv', h=F)
+nrow(spei_xtrm)
+whb <- brick('D:/global_veg/rasters/whittaker_worldclim_ecoregion.tif')
+plot(whb)
+
+d1 <- read.csv('D:/global_veg/datasets/NDVIt_equi_ncycl_ts.csv',
+               h=F)
+colnames(d1) <- c('id','nodata','x','y', 'Ncycle','CC','aic', 'Radj',
+                  'model_arb', 'model_CC_aic', 'model_Radj',
+                  'mn_rg', 'mn_rr', 'mn_rrt', 'mn_rtp', 'rtn',
+                  'sd_rg', 'sd_rr', 'sd_rrt', 'sd_rtp')
+head(d1)
+d2 <- d1
+d2$id <- d2$Ncycle <- d2$CC <- d2$aic <- d2$Radj <- NULL
+d2$model_arb <- d2$model_CC_aic <- d2$model_Radj <- NULL
+
+d2$mn_rg <- 1 / d1$mn_rg
+d2$sd_rg <- 1 / d1$sd_rg
+d2 <- subset(d2, nodata < 0.30)
+d3 <- d2
+d2$nodata <- d2$x <- d2$y <- NULL
+
+rsl_idx_dt <- apply(d2, 2, function(x) scale(x))
+rt_idx <- apply(rsl_idx_dt, 1, function(x) mean(x, na.rm = T))
+rsl_idx <- (exp(-rt_idx))
+
+##rownames of d1 is the V1 column of spei_xtrm
+spei_xtrm1 <- spei_xtrm[!duplicated(spei_xtrm),]
+spei_xtrm1$V1 <- paste(spei_xtrm1$V2, spei_xtrm1$V3, sep='_')
+spei_xtrm1$resl_indx <- NA
+
+df_spei_resl <- data.frame(matrix(NA, ncol = ncol(spei_xtrm1), nrow = nrow(spei_xtrm1)))
+for(i in 1:nrow(d3)){
+  xy <- paste(d3$x[i], d3$y[i], sep='_')
+  df <- subset(spei_xtrm1, V1 %in% xy)
+  df$resl_indx <- rsl_idx[i]
+  df_spei_resl[i,] <- df
+  print(i)
+}
+head(df_spei_resl)
+df_spei_resl$biome <- extract(whb, df_spei_resl[,c(2,3)])
+df_spei_resl$X1 <- NULL
+
+resl_clim_xtrem_rel <- function(extr_qq_id, extr_dat){
+  library(reshape2)
+  prb <- seq(0, 1, 0.025)
+  bm_slp <- matrix(NA, ncol=20, nrow=10)
+  for(i in 1:10){
+    df_whb <- subset(extr_dat, biome %in% i)
+    qq_spei <- melt(quantile(df_whb[,extr_qq_id], probs=prb))
+    resl075 <- vector()
+    for(j in 1:(nrow(qq_spei)-1)){
+      spdf1 <- subset(df_whb, df_whb[,extr_qq_id] > qq_spei$value[j] &
+                        df_whb[,extr_qq_id] <= qq_spei$value[j+1])
+      resl075[j] <- mean(spdf1$X6)
+    }
+    mdf <- data.frame(mn_resl = resl075, t = 1:length(resl075))
+    md <- confint(lm(mn_resl ~ t, data = mdf), level = 0.9)[2,]
+    bm_slp[i,] <- runif(20, md[1], md[2])
+  }
+  return(bm_slp)
+}
+
+
+slp090_spei <- resl_clim_xtrem_rel(3, df_spei_resl)
+slp095_spei <- resl_clim_xtrem_rel(4, df_spei_resl)
+
+slp_spei_xtr <- data.frame(cbind(slp090_spei, slp095_spei))
+slp_spei_xtr$bm <- 1:10
+slp_spei_xtr1 <- melt(slp_spei_xtr, id.vars = 'bm') 
+
+library(stringr)
+df1_spei_resl_mn <- melt(with(slp_spei_xtr1,
+                              tapply(value, factor(bm), function(x) mean(x,na.rm=T))))[,2]
+df1_spei_resl_sd <- melt(with(slp_spei_xtr1,
+                              tapply(value, factor(bm), function(x) sd(x,na.rm=T))))[,2]
+df1_spei_resl <- data.frame(spei_xtr_mn = df1_spei_resl_mn,
+                            spei_xtr_sd = df1_spei_resl_sd,
+                            biome = factor(str_pad(1:10, width=2, pad='0')))
+y_lab <- expression(Delta ~ "resilience /" ~ Delta ~ "water stress extreme")
+xt2 <- ggplot(df1_spei_resl, aes(y = spei_xtr_mn, x =biome,
+                                 colour = biome))+
+  geom_hline(yintercept=0, linetype=2)+
+  geom_point(size=4)+
+  geom_errorbar(aes(ymin=spei_xtr_mn-spei_xtr_sd,
+                    ymax= spei_xtr_mn+spei_xtr_sd), width=.2,
+                position=position_dodge(.9))+
+  #coord_cartesian(ylim=c(0,4))+ 
+  ylab(y_lab)+ xlab("")+
+  ggtitle("b) Resilience ~ Water stress")+
+  scale_x_discrete(breaks = str_pad(1:10, width=2, pad='0'), 
+                   label = c("Tropical \n rainforest","Tropical \n deciduous", 
+                             "Tropical \n grassland", "Hot \n desert",
+                             "Temperate \n rainforest","Temperate \n deciduous",
+                             "Cold \n desert","Temperate \n grassland", "Taiga", "Tundra"))+
+  scale_colour_manual(values= c("green4", "olivedrab3", "tan4", "red4", "cyan",
+                                "royalblue4", "grey70", "yellow", "sandybrown", "steelblue3"))+
+  theme_bw()+
+  theme(
+    legend.position = "none",
+    panel.grid = element_blank(), axis.ticks.y = element_blank(),
+    axis.text.x = element_text(angle= 90, size=14, colour='black',vjust=0.70),
+    axis.text.y = element_text(size=10, colour='black'),
+    axis.title.y = element_text(size=14, colour='black'),
+    plot.title = element_text(size=14, colour = 'black')
+  )###800, 400, water_stress_biomes
+xt2
+
