@@ -197,4 +197,6 @@ xt2 <- ggplot(df1_spei_resl, aes(y = spei_xtr_mn, x =biome,
     plot.title = element_text(size=14, colour = 'black')
   )###800, 400, water_stress_biomes
 xt2
+matl <- matrix(c(1,1,1,2,2,2,2))
+gridExtra::grid.arrange(xt1, xt2, layout_matrix=matl)
 
