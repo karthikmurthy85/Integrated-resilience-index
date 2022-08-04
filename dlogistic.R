@@ -1,3 +1,4 @@
+##Double logistic function#
 dLogistic <- function(ndvi){
   
   time <- 1:length(ndvi)
