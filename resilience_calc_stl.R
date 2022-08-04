@@ -6,15 +6,18 @@ library(zoo)
 library(ggpmisc)
 library(reconPlots)
 
+##Aggregate the GIMMS NDVI data to 55km
 f1 <-  list.files('/media/karthik/ADATA HD720/global_veg/rasters/GIMMS_3gV1/', full.names = T)
 f1 <- f1[-(1:2)]
 #ndras <- aggregate(stack(f1), fact=6)
 ndras <- brick('/media/karthik/ADATA HD720/global_veg/GIMMS_NDVI_55km.grd')
 
+##GEt data on global vegetated area 
 ndvi_area <- read.csv('/media/karthik/ADATA HD720/global_veg/datasets/veg_clim_rel_lm.csv')
 head(ndvi_area)
 ndvi_area[,1:9] <- NULL
 
+##Annual mean NDVI of the long-term NDVI time series
 mean_fun <- function(ts_ndvi){
   yr_id <- c(seq(1, 816, 24), 816)
   mn_yri <- NA
@@ -25,29 +28,32 @@ mean_fun <- function(ts_ndvi){
   return(mn_yri)
 }
 
+##Function to select the trend window of the stl function such that 
+##the number of cycles in the trend NDVI and mean annual NDVI time series are equal
+
 twindow_sel <- function(ndvi_ts, meanNDVI_ts){
-  maxs <- match(meanNDVI_ts[ggpmisc:::find_peaks(meanNDVI_ts)], meanNDVI_ts)
-  mins <- match(meanNDVI_ts[ggpmisc:::find_peaks(-meanNDVI_ts)], meanNDVI_ts)
-  pk <- c(mins, maxs)
-  pk1 <- pk[order(pk)]
-  cyc_num1 <- floor(length(pk1)/2)
+  maxs <- match(meanNDVI_ts[ggpmisc:::find_peaks(meanNDVI_ts)], meanNDVI_ts) ##time -  Maxima occurred in time series
+  mins <- match(meanNDVI_ts[ggpmisc:::find_peaks(-meanNDVI_ts)], meanNDVI_ts) ##time -  Minima occurred in time series
+  pk <- c(mins, maxs) ## Time - all the extrema in the time series
+  pk1 <- pk[order(pk)] 
+  cyc_num1 <- floor(length(pk1)/2) ##Number of cycles in the mean annual NDVI time series data
   
   cyc_num <- NA
-  tws <- seq(1,5,0.25)
+  tws <- seq(1,5,0.25) Different trend window values
   for(i in 1:length(tws)){
-    ndt1 <- ts(ndvi_ts, frequency = 24)
-    ndt2 <- stl(ndt1, s.window = 24, t.window = 24*tws[i])
+    ndt1 <- ts(ndvi_ts, frequency = 24) ##GIMMS data is bi-monthly : 2 NDVI values per month; hence 24 data points annually 
+    ndt2 <- stl(ndt1, s.window = 24, t.window = 24*tws[i]) ##Conduct stl decomposition
     plot(ndt2, main = "NDVI time-series decomposition")
     ts5 <- ndt2$time.series[,2]
-    maxs <- match(ts5[ggpmisc:::find_peaks(ts5)], ts5)
-    mins <- match(ts5[ggpmisc:::find_peaks(-ts5)], ts5)
-    pks <- c(mins, maxs)
+    maxs <- match(ts5[ggpmisc:::find_peaks(ts5)], ts5) ##time -  Maxima occurred in time series
+    mins <- match(ts5[ggpmisc:::find_peaks(-ts5)], ts5) ##time -  Minima occurred in time series
+    pks <- c(mins, maxs)  ## Time - all the extrema in the time series
     pks1 <- pks[order(pks)]
-    cyc_num[i] <- floor(length(pks1)/2)
+    cyc_num[i] <- floor(length(pks1)/2) ##Number of cycles in the trend NDVI time series data
     print(i)
   }
   cyc_df <- data.frame(cyc_num=cyc_num, tws = tws)
-  cyc_df1 <- subset(cyc_df, cyc_num %in% cyc_num1)
+  cyc_df1 <- subset(cyc_df, cyc_num %in% cyc_num1)  ##Get the trend window value which gives equal number of cycles in mean annual NDVI
   
   if(nrow(cyc_df1)==0){
     cyc_df$diff <- abs(cyc_df$cyc_num - cyc_num1)
@@ -96,6 +102,7 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
   mn_mod <- summary(lm(mn~c(1:34)))
   mn_mod
   
+  ##GEt the details regarding the trajectory of mean annual NDVI#
   source('global_veg/codes/dlogistic.R')
   source('global_veg/codes/dlogistic_inv.R')
   source('global_veg/codes/logistic.R')
@@ -131,6 +138,7 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
   mn_aic_lin <- aic_calc(mn, mn_mod$residuals, 2)
   mn_radj_lin <- mn_mod$adj.r.squared
   
+  
   mn_tr_dt <- data.frame(cc_score = c(mn_lin, mn_log, mn_log_inv, 
                                       mn_dlog, mn_dlog_inv),
                          aic_score = c(mn_aic_lin, mn_aic_log, mn_aic_log_inv, 
@@ -143,6 +151,8 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
                                    "reverse", "reverse"), 
                          rank =c(1, 2, 2, 3, 3))
   mn_tr_dt <- subset(mn_tr_dt, !cc_score %in% NA)
+  
+  ##Runing the model selection to identify the best fit##
   modsel <- model_sel_fun(mn_tr_dt)
   modsel
   mn_tr_dt$cc_score <- round(mn_tr_dt$cc_score,3)
@@ -152,7 +162,8 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
   modsel2 <- model_sel_fun3(mn_tr_dt)
   modsel2
   
-  tw_num <- twindow_sel(ts2$value,mn)
+  ##Ananlysis of trend NDVI
+  tw_num <- twindow_sel(ts2$value,mn) ##Identify the trend window value
   ndt1 <- ts(ts2$value, frequency = 24)
   ndt2 <- stl(ndt1, s.window = 24, t.window = 24*tw_num)
   plot(ndt2, main = "NDVI time-series decomposition")
@@ -162,6 +173,7 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
   plot(mn, ty='o')
   plot(ts6$id, ts6$ts, ty='l')
   
+  ##Identify cycles
   fitt <- ts5
   maxs <- match(fitt[ggpmisc:::find_peaks(fitt)], fitt)
   mins <- match(fitt[ggpmisc:::find_peaks(-fitt)], fitt)
@@ -173,6 +185,7 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
   cyc_num <- floor(length(pks1)/2)
   rem <- length(pks1)%%2
   
+  ##Calculate the return indices for each cycle
   ifelse(maxs[1]<mins[1], ky <- 1, ky <- -1)
   source('global_veg/new_codes/RR_indices.R')
   res <- matrix(data = NA, nrow = cyc_num, ncol = 4)
@@ -208,6 +221,8 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
     }
   }
   
+  ##Calculate multi-return index based on the mean and standard deviation of the return indices 
+  ##that are calculated for all cycles in the trend NDVI time series
   ifelse(maxs[1]<mins[1], rtp <- pk_dif(maxs), rtp <- pk_dif(mins))
   ifelse(maxs[1]<mins[1], rr <- rrg_fun(fitt[maxs], mean(mn)), 
          rr <- rrg_fun(fitt[mins], mean(mn)))  
@@ -240,7 +255,8 @@ foreach(k = 1:nrow(ndvi_area))%dopar%{
   vardt <- matrix(data = c(lip, nodata,  coord, num_cyc, mod_var, mnr_var, sd_var),
                   nrow=1)
   
-  path = "/media/karthik/ADATA HD720/global_veg/datasets/NDVIt_equi_ncycl_ts.csv" ##mean annual NDVI 
+  ##Write the data into csv file
+  path = "/media/karthik/ADATA HD720/global_veg/datasets/NDVIt_equi_ncycl_ts.csv"  
   write.table(vardt, path, sep=',',
               append=TRUE, row.names=FALSE, col.names=FALSE)
   #print(vardt)
