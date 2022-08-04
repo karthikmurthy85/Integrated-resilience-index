@@ -1,3 +1,4 @@
+##Inverse double logistic function - parameter k is negative
 dLogistic_inv <- function(ndvi){
   
   time <- 1:length(ndvi)
