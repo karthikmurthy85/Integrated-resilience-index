@@ -58,34 +58,36 @@ com_dt$mov_mod <- rep(c('null','abrupt','reverse','gradual'), each= nsam)
 #   geom_boxplot()+theme_bw()
 # 
 
-# inds <- com_dt[,c(12:21)]
-# inds$mn_rtp <- NULL
-# inds$sd_rtp <- NULL
-# inds$mn_rg <- 1 /inds$mn_rg
-# inds$sd_rg <- 1 /inds$sd_rg
-# for(i in 1:(ncol(inds)-1)){inds[,i] <- (exp(scale(inds[,i])))}
-# inds <- inds[complete.cases(inds),]
-# library(vegan)
-# rtnmds<-metaMDS(inds[,-ncol(inds)],k=2,trymax=30, dist="euclid")
-# rtnmds1<-metaMDS(inds[,-ncol(inds)],k=2,trymax=30, dist="bray")
-# inds1 <- cbind(inds, rtnmds$points)
-# inds2 <- cbind(inds, rtnmds1$points)
-# 
-# ellipse_eucl<-ggplot(inds1, aes(x=MDS1, y=MDS2, fill=mov_mod, colour=mov_mod)) +
-#   geom_jitter(size=1, width=0.05, alpha=0.5)+ theme_bw()+ 
-#   #ylim(-0.1,0.1)+xlim(-0.25,0.25)+
-#   stat_ellipse(type = "t", level= 0.5, linetype=1, lwd=1.2, segments=6) + 
-#   ylab("MDS2") + xlab("MDS1")+
-#   ggtitle("a) Ordinance return time index")
-# ellipse_eucl
-# 
-# ellipse_bry<-ggplot(inds2, aes(x=MDS1, y=MDS2, fill=mov_mod, colour=mov_mod)) +
-#   geom_jitter(size=1, width=0.05, alpha=0.5)+ theme_bw()+ 
-#   #ylim(-0.1,0.25)+xlim(-0.25,0.25)+
-#   stat_ellipse(type = "t", level= 0.5, linetype=1, lwd=1.2, segments=6) + 
-#   ylab("MDS2") + xlab("MDS1")+
-#   ggtitle("a) Ordinance return time index")
-# ellipse_bry
+##Doing a non-metric dimentional scaling of return indices 
+##Visualize if there are any difference in the polygon space between different trajectories
+inds <- com_dt[,c(12:21)]
+inds$mn_rtp <- NULL
+inds$sd_rtp <- NULL
+inds$mn_rg <- 1 /inds$mn_rg
+inds$sd_rg <- 1 /inds$sd_rg
+for(i in 1:(ncol(inds)-1)){inds[,i] <- (exp(scale(inds[,i])))}
+ inds <- inds[complete.cases(inds),]
+ library(vegan)
+ rtnmds<-metaMDS(inds[,-ncol(inds)],k=2,trymax=30, dist="euclid")
+ rtnmds1<-metaMDS(inds[,-ncol(inds)],k=2,trymax=30, dist="bray")
+ inds1 <- cbind(inds, rtnmds$points)
+ inds2 <- cbind(inds, rtnmds1$points)
+ 
+ellipse_eucl<-ggplot(inds1, aes(x=MDS1, y=MDS2, fill=mov_mod, colour=mov_mod)) +
+   geom_jitter(size=1, width=0.05, alpha=0.5)+ theme_bw()+ 
+   #ylim(-0.1,0.1)+xlim(-0.25,0.25)+
+   stat_ellipse(type = "t", level= 0.5, linetype=1, lwd=1.2, segments=6) + 
+   ylab("MDS2") + xlab("MDS1")+
+   ggtitle("a) Ordinance return time index")
+ellipse_eucl
+ 
+ellipse_bry<-ggplot(inds2, aes(x=MDS1, y=MDS2, fill=mov_mod, colour=mov_mod)) +
+   geom_jitter(size=1, width=0.05, alpha=0.5)+ theme_bw()+ 
+   #ylim(-0.1,0.25)+xlim(-0.25,0.25)+
+   stat_ellipse(type = "t", level= 0.5, linetype=1, lwd=1.2, segments=6) + 
+   ylab("MDS2") + xlab("MDS1")+
+   ggtitle("a) Ordinance return time index")
+ellipse_bry
 
 mind <- com_dt[,c(12:21)]
 # mind$mn_rtp <- NULL
