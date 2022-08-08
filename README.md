@@ -13,3 +13,6 @@ This includes the following steps:
 9. Integrated resilience index =  exp(-composite return rate index)
 
 
+# Check the distribution of integrated resilience index with different modes of temporal trajectories
+* Collect the pixels showing high certainity with null (low Radj with any model), reversible, abrupt and gradual trajectories
+* Examine their distribution 
